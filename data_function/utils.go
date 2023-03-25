@@ -12,8 +12,14 @@ import (
 	"time"
 )
 
-const MB = 1
-const GB = 1024 * MB
+const Bytes = 1
+const KiB = 1024 * Bytes
+const MiB = 1014 * KiB
+const GiB = 1024 * MiB
+
+func ceilDiv(a, b int) int {
+	return (a + b - 1) / b
+}
 
 func sendResult(w http.ResponseWriter, result string) {
 	buf := []byte(result)

@@ -6,9 +6,9 @@ import (
 	"time"
 )
 
-const FirstShmKey int64 = 0x77770000
+const FirstShmKey int = 0x77770000
 
-const ShmKeyMaxCount int64 = 0xFFFF
+const ShmKeyMaxCount int = 0xFFFF
 
 type safeRand struct {
 	mu sync.Mutex
@@ -21,8 +21,8 @@ func newSafeRand() *safeRand {
 	}
 }
 
-func (sr *safeRand) ShmKeyGen() int64 {
+func (sr *safeRand) ShmKeyGen() int {
 	sr.mu.Lock()
 	defer sr.mu.Unlock()
-	return sr.r.Int63n(ShmKeyMaxCount) + FirstShmKey
+	return sr.r.Intn(ShmKeyMaxCount) + FirstShmKey
 }

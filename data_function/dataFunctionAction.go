@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -16,6 +17,9 @@ import (
 const DataFunctionActionCodePath = "/home/kingdo/CLionProjects/DataFunction/src/DataFunction/action/__main__.py"
 const DataFunctionActionDockerImage = " kingdo/action-python-v3.10"
 const DataFunctionActionDockerImageTag = "latest"
+
+const BaseMemoryConfigureOfDataFunctionAction = 64
+const DefaultSharedDataFunctionMemorySlots = 512
 
 type KeepLive struct {
 	ticker   *time.Ticker
@@ -67,6 +71,7 @@ type DataFunctionAction struct {
 	timeout      int
 	created      bool
 	kl           *KeepLive
+	leftSlots    atomic.Int32
 	exclusive    bool
 }
 
@@ -76,10 +81,11 @@ func NewAction(ID int) *DataFunctionAction {
 		ID,
 		"guest",
 		actionName,
-		256,
+		DefaultSharedDataFunctionMemorySlots + BaseMemoryConfigureOfDataFunctionAction,
 		300000,
 		false,
 		nil,
+		atomic.Int32{},
 		true,
 	}
 }
@@ -342,7 +348,38 @@ func (dfa *DataFunctionAction) createSHM(key int, size int) error {
 	return nil
 }
 
-func (dfa *DataFunctionAction) destroySHM(key int64) error {
+type DeleteSHMParam struct {
+	Op  string `json:"op"`
+	Key int    `json:"key"`
+}
+
+func (dfa *DataFunctionAction) destroySHMbyAPI(key int) error {
+	if !dfa.created {
+		return errors.New(fmt.Sprintf("Action `%s` is not created", dfa.actionName))
+	}
+
+	//curl -X 'POST' \
+	//'https://raw.githubusercontent.com/api/v1/namespaces/guest/actions/DataFunction-1?blocking=true&result=true' \
+	//-H 'accept: application/json' \
+	//-H 'authorization: Basic MjNiYzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOjEyM3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A=' \
+	//-H 'Content-Type: application/json' \
+	//-d '{"op":"ping"}'
+
+	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s?blocking=true&result=true", ApiHost, dfa.namespace, dfa.actionName)
+
+	param, _ := json.Marshal(DeleteSHMParam{
+		"destroy",
+		key,
+	})
+	out, err := POST(url, param)
+	if err != nil {
+		Error("invoke destroySHMbyAPI Error, %s", err)
+		return err
+	}
+	Debug("destroySHM: %s", strings.Replace(out, "\n", "", -1))
+	return nil
+}
+func (dfa *DataFunctionAction) destroySHM(key int) error {
 	if !dfa.created {
 		return errors.New(fmt.Sprintf("Action `%s` is not created", dfa.actionName))
 	}

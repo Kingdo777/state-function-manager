@@ -3,7 +3,6 @@ package data_function
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,77 +11,44 @@ import (
 	"time"
 )
 
+type SHMObject struct {
+	name string
+	// Key mains shm-Key
+	Key    int
+	size   int
+	action *DataFunctionAction
+}
+
+func (shm *SHMObject) MibSize() int {
+	return ceilDiv(shm.size, MiB)
+}
+
 // DataFunctionManagerProxy is the DataFunction Manager running in a separate Action, as a component of Openwhisk
 type DataFunctionManagerProxy struct {
-	randNumGenerator *safeRand
+	keyGenerator *KeyGenerator
 
 	actionPool *DataFunctionActionPool
 
-	// Key mains shm-Key, Key-to
-	KeyActionMapMutex sync.Mutex
-	KeyActionMap      map[int64]*DataFunctionAction
-
-	NameKeyMapMutex sync.Mutex
-	NameKeyMap      map[string]int64
+	SHMObjectMapMutex sync.Mutex
+	SHMObjectMap      map[string]*SHMObject
 }
 
 // NewManagerProxy creates a new manager proxy that can handle http requests
 func NewManagerProxy() *DataFunctionManagerProxy {
-	return &DataFunctionManagerProxy{
-		newSafeRand(),
 
-		NewDataFunctionActionPool(1),
-
-		sync.Mutex{},
-		make(map[int64]*DataFunctionAction),
-
-		sync.Mutex{},
-		make(map[string]int64),
-	}
-}
-
-func (mp *DataFunctionManagerProxy) GetSHM(name string) (int64, error) {
-	mp.NameKeyMapMutex.Lock()
-	defer mp.NameKeyMapMutex.Unlock()
-
-	Key, ok := mp.NameKeyMap[name]
-	if !ok {
-		return -1, errors.New(fmt.Sprintf("cannot find Key of name: `%s`", name))
-	}
-
-	return Key, nil
-}
-
-func (mp *DataFunctionManagerProxy) DestroySHM(name string) (string, error) {
-	mp.NameKeyMapMutex.Lock()
-	Key, ok := mp.NameKeyMap[name]
-	mp.NameKeyMapMutex.Unlock()
-	if !ok {
-		return "", errors.New(fmt.Sprintf("cannot find Key of name: `%s`", name))
-	}
-
-	mp.KeyActionMapMutex.Lock()
-	action, ok := mp.KeyActionMap[Key]
-	mp.KeyActionMapMutex.Unlock()
-	err := action.destroySHM(Key)
+	pool, err := NewDataFunctionActionPool(1)
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("error on exec action.destroySHM(): %s", err))
+		Error(fmt.Sprintf("Error NewDataFunctionActionPool: %s", err))
+		return nil
 	}
+	return &DataFunctionManagerProxy{
+		NewKeyGenerator(FirstShmKey, FirstShmKey+ShmKeyMaxCount),
 
-	if action.exclusive {
-		err := action.destroyByAPI()
-		if err != nil {
-			return "", errors.New(fmt.Sprintf("error on exec action.destroy(): %s", err))
-		}
-		mp.NameKeyMapMutex.Lock()
-		mp.KeyActionMapMutex.Lock()
-		defer mp.KeyActionMapMutex.Unlock()
-		defer mp.NameKeyMapMutex.Unlock()
-		delete(mp.KeyActionMap, Key)
-		delete(mp.NameKeyMap, name)
+		pool,
+
+		sync.Mutex{},
+		make(map[string]*SHMObject),
 	}
-
-	return fmt.Sprintf("DestroySHM %s Success", name), nil
 }
 
 type CreateSHMResponseMessage struct {
@@ -137,7 +103,7 @@ func (mp *DataFunctionManagerProxy) ServeHTTP(w http.ResponseWriter, r *http.Req
 			return
 		}
 		Warn("CreateSHM use %d ms", time.Since(start).Milliseconds())
-		createSHMResponseMessage := CreateSHMResponseMessage{Key: strconv.FormatInt(Key, 10)}
+		createSHMResponseMessage := CreateSHMResponseMessage{Key: strconv.FormatInt(int64(Key), 10)}
 		sendResult(w, genOKMessage(createSHMResponseMessage))
 		return
 
@@ -158,7 +124,7 @@ func (mp *DataFunctionManagerProxy) ServeHTTP(w http.ResponseWriter, r *http.Req
 			sendError(w, http.StatusBadGateway, genErrorMessage(fmt.Sprintf("%s", err)))
 			return
 		}
-		getSHMResponseMessage := GetSHMResponseMessage{Key: strconv.FormatInt(Key, 10)}
+		getSHMResponseMessage := GetSHMResponseMessage{Key: strconv.FormatInt(int64(Key), 10)}
 		sendResult(w, genOKMessage(getSHMResponseMessage))
 		return
 	case "/destroy":
