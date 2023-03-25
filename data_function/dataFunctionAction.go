@@ -15,7 +15,7 @@ import (
 // const DataFunctionActionCodePath = "/home/kingdo/CLionProjects/DataFunction/src/DataFunction/DataFunction-Virtualenv.zip"
 
 const DataFunctionActionCodePath = "/home/kingdo/CLionProjects/DataFunction/src/DataFunction/action/__main__.py"
-const DataFunctionActionDockerImage = " kingdo/action-python-v3.10"
+const DataFunctionActionDockerImage = "kingdo/action-python-v3.10"
 const DataFunctionActionDockerImageTag = "latest"
 
 const BaseMemoryConfigureOfDataFunctionAction = 64
