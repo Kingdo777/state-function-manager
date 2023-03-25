@@ -2,6 +2,7 @@ package data_function
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -84,19 +85,26 @@ func genOKMessage(message interface{}) string {
 	return string(jsonBytes)
 }
 
-func POSTTimeout(url string, requestBody []byte, timeout int) (string, error) {
+func RESTFUL(method string, url string, requestBody []byte, timeout int) (string, error) {
 
-	client := &http.Client{
-		Timeout: time.Duration(timeout) * time.Second,
+	// 创建一个不验证HTTPS的Transport
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 
-	request, err := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
+	client := &http.Client{
+		Timeout:   time.Duration(timeout) * time.Second,
+		Transport: tr,
+	}
+
+	request, err := http.NewRequest(method, url, bytes.NewBuffer(requestBody))
 	if err != nil {
 		errMsg := fmt.Sprintf("Error creating request, %s", err)
 		Error(errMsg)
 		return errMsg, err
 	}
 	request.Header.Set("Content-Type", "application/json")
+	request.SetBasicAuth(AuthName, AuthPassword)
 
 	response, err := client.Do(request)
 	if err != nil {
@@ -129,5 +137,9 @@ func POSTTimeout(url string, requestBody []byte, timeout int) (string, error) {
 }
 
 func POST(url string, requestBody []byte) (string, error) {
-	return POSTTimeout(url, requestBody, 0)
+	return RESTFUL("POST", url, requestBody, 0)
+}
+
+func DELETE(url string) (string, error) {
+	return RESTFUL("DELETE", url, []byte{}, 0)
 }

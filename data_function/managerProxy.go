@@ -70,7 +70,7 @@ func (mp *DataFunctionManagerProxy) DestroySHM(name string) (string, error) {
 	}
 
 	if action.exclusive {
-		err := action.destroy()
+		err := action.destroyByAPI()
 		if err != nil {
 			return "", errors.New(fmt.Sprintf("error on exec action.destroy(): %s", err))
 		}
@@ -132,11 +132,11 @@ func (mp *DataFunctionManagerProxy) ServeHTTP(w http.ResponseWriter, r *http.Req
 		Warn("Args check and parse use: %d ms", time.Since(start).Milliseconds())
 
 		Key, err := mp.CreateSHM(name, size)
-		Warn("CreateSHM use %d ms", time.Since(start).Milliseconds())
 		if err != nil {
 			sendError(w, http.StatusBadGateway, genErrorMessage(fmt.Sprintf("%s", err)))
 			return
 		}
+		Warn("CreateSHM use %d ms", time.Since(start).Milliseconds())
 		createSHMResponseMessage := CreateSHMResponseMessage{Key: strconv.FormatInt(Key, 10)}
 		sendResult(w, genOKMessage(createSHMResponseMessage))
 		return

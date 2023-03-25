@@ -11,7 +11,9 @@ import (
 	"time"
 )
 
-const DataFunctionActionCodePath = "/home/kingdo/CLionProjects/DataFunction/src/DataFunction/DataFunction-Virtualenv.zip"
+// const DataFunctionActionCodePath = "/home/kingdo/CLionProjects/DataFunction/src/DataFunction/DataFunction-Virtualenv.zip"
+
+const DataFunctionActionCodePath = "/home/kingdo/CLionProjects/DataFunction/src/DataFunction/action/__main__.py"
 const DataFunctionActionDockerImage = " kingdo/action-python-v3.10"
 const DataFunctionActionDockerImageTag = "latest"
 
@@ -72,7 +74,7 @@ func NewAction(ID int) *DataFunctionAction {
 	actionName := fmt.Sprintf("DataFunction-%d", ID)
 	return &DataFunctionAction{
 		ID,
-		"_",
+		"guest",
 		actionName,
 		256,
 		300000,
@@ -218,6 +220,31 @@ func (dfa *DataFunctionAction) ping() error {
 	}
 }
 
+func (dfa *DataFunctionAction) destroyByAPI() error {
+	if !dfa.created {
+		return errors.New(fmt.Sprintf("Action `%s` is not created", dfa.actionName))
+	}
+	startTime := time.Now()
+	dfa.kl.stop()
+	dfa.kl = nil
+	dfa.created = false
+
+	//curl -X 'DELETE' \
+	//'https://raw.githubusercontent.com/api/v1/namespaces/guest/actions/actionName' \
+	//-H 'accept: application/json' \
+	//-H 'authorization: Basic MjNiYzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOjEyM3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A='
+
+	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s", ApiHost, dfa.namespace, dfa.actionName)
+
+	_, err := DELETE(url)
+	if err != nil {
+		Error("invoke destroyByAPI Error, %s", err)
+		return err
+	}
+	Debug("Destroy the DataFunction Action: %s, used %d ms", dfa.actionName, time.Since(startTime).Milliseconds())
+	return nil
+}
+
 func (dfa *DataFunctionAction) destroy() error {
 	Debug("Destroy the DataFunction Action: %s", dfa.actionName)
 	if !dfa.created {
@@ -245,6 +272,41 @@ func (dfa *DataFunctionAction) destroy() error {
 		return err
 	}
 
+	return nil
+}
+
+type CreateSHMParam struct {
+	Op   string `json:"op"`
+	Key  int    `json:"key"`
+	Size int    `json:"size"`
+}
+
+// docs: https://github.com/apache/openwhisk/blob/master/docs/rest_api.md#using-rest-apis-with-openwhisk
+func (dfa *DataFunctionAction) createSHMbyAPI(key int, size int) error {
+	if !dfa.created {
+		return errors.New(fmt.Sprintf("Action `%s` is not created", dfa.actionName))
+	}
+
+	//curl -X 'POST' \
+	//'https://raw.githubusercontent.com/api/v1/namespaces/guest/actions/DataFunction-1?blocking=true&result=true' \
+	//-H 'accept: application/json' \
+	//-H 'authorization: Basic MjNiYzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOjEyM3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A=' \
+	//-H 'Content-Type: application/json' \
+	//-d '{"op":"ping"}'
+
+	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s?blocking=true&result=true", ApiHost, dfa.namespace, dfa.actionName)
+
+	param, _ := json.Marshal(CreateSHMParam{
+		"create",
+		key,
+		size,
+	})
+	out, err := POST(url, param)
+	if err != nil {
+		Error("invoke createSHMbyAPI Error, %s", err)
+		return err
+	}
+	Debug("createSHM: %s", strings.Replace(out, "\n", "", -1))
 	return nil
 }
 

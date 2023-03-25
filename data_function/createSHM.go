@@ -55,7 +55,7 @@ func (mp *DataFunctionManagerProxy) CreateSHM(SHMName string, size int) (int64, 
 	}
 	Warn("instantiateAnIdleAction use %d ms", time.Since(start).Milliseconds())
 
-	err = action.createSHM(int(Key), size)
+	err = action.createSHMbyAPI(int(Key), size)
 	if err != nil {
 		return -1, errors.New(fmt.Sprintf("Error invoke Action to create SHM: %s", err))
 	}
