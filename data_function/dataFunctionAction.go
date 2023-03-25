@@ -13,8 +13,10 @@ import (
 )
 
 // const DataFunctionActionCodePath = "/home/kingdo/CLionProjects/DataFunction/src/DataFunction/DataFunction-Virtualenv.zip"
+// const DataFunctionActionCodePath = "/home/kingdo/CLionProjects/DataFunction/src/DataFunction/action/__main__.py"
 
-const DataFunctionActionCodePath = "/home/kingdo/CLionProjects/DataFunction/src/DataFunction/action/__main__.py"
+var DataFunctionActionCodePath = os.Getenv("DataFunctionActionCodePath")
+
 const DataFunctionActionDockerImage = "kingdo/action-python-v3.10"
 const DataFunctionActionDockerImageTag = "latest"
 

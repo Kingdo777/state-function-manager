@@ -1,0 +1,13 @@
+version: '3.9'
+services:
+  data-function-manager:
+    image: kingdo/data-function-manager
+    container_name: data-function-manager
+    restart: always
+    ports:
+      - "7070:7070"
+    environment:
+      Openwhisk_ApiHost: "222.20.94.67"
+      Openwhisk_AuthName: "23bc46b1-71f6-4ed5-8c54-816aa4f8c502"
+      Openwhisk_AuthPassword: "123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP"
+    entrypoint: [ "/bin/proxy","-debug" ]
