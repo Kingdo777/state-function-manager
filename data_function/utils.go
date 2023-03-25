@@ -142,8 +142,16 @@ func RESTFUL(method string, url string, requestBody []byte, timeout int) (string
 	}
 }
 
+func POSTWithTimeout(url string, requestBody []byte, timeout int) (string, error) {
+	return RESTFUL("POST", url, requestBody, timeout)
+}
+
 func POST(url string, requestBody []byte) (string, error) {
 	return RESTFUL("POST", url, requestBody, 0)
+}
+
+func PUT(url string, requestBody []byte) (string, error) {
+	return RESTFUL("PUT", url, requestBody, 0)
 }
 
 func DELETE(url string) (string, error) {

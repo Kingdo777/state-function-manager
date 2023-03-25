@@ -42,7 +42,7 @@ func (kl *KeepLive) start(dfa *DataFunctionAction) {
 			for {
 				select {
 				case <-kl.ticker.C:
-					err := dfa.ping()
+					err := dfa.pingByAPI()
 					if err != nil {
 						Warn("Keep live error, cannot ping the action `%s`", dfa.actionName)
 						return
@@ -90,6 +90,112 @@ func NewAction(ID int) *DataFunctionAction {
 	}
 }
 
+type UpdateActionBody struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+	Exec      struct {
+		Kind   string `json:"kind"`
+		Code   []byte `json:"code"`
+		Image  string `json:"image"`
+		Binary bool   `json:"binary"`
+	} `json:"exec"`
+	Annotations []struct {
+		Key   string      `json:"key"`
+		Value interface{} `json:"value"`
+	} `json:"annotations"`
+	Limits struct {
+		Timeout     int `json:"timeout"`
+		Memory      int `json:"memory"`
+		Logs        int `json:"logs"`
+		Concurrency int `json:"concurrency"`
+	} `json:"limits"`
+	Publish bool `json:"publish"`
+}
+
+func (dfa *DataFunctionAction) updateByAPI(ping bool) error {
+
+	startTime := time.Now()
+
+	code, _ := os.ReadFile(DataFunctionActionCodePath)
+
+	body := UpdateActionBody{
+		Namespace: dfa.namespace,
+		Name:      dfa.actionName,
+		Exec: struct {
+			Kind   string `json:"kind"`
+			Code   []byte `json:"code"`
+			Image  string `json:"image"`
+			Binary bool   `json:"binary"`
+		}{
+			Kind:   "blackbox",
+			Code:   code,
+			Image:  fmt.Sprintf("%s:%s", DataFunctionActionDockerImage, DataFunctionActionDockerImageTag),
+			Binary: false,
+		},
+		Annotations: []struct {
+			Key   string      `json:"key"`
+			Value interface{} `json:"value"`
+		}{
+			{
+				Key:   "provide-api-key",
+				Value: false,
+			},
+			{
+				Key:   "exec",
+				Value: "blackbox",
+			},
+		},
+		Limits: struct {
+			Timeout     int `json:"timeout"`
+			Memory      int `json:"memory"`
+			Logs        int `json:"logs"`
+			Concurrency int `json:"concurrency"`
+		}{
+			Timeout:     dfa.timeout,
+			Memory:      dfa.memConfigure,
+			Logs:        10,
+			Concurrency: 1,
+		},
+		Publish: false,
+	}
+
+	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s?overwrite=true", ApiHost, dfa.namespace, dfa.actionName)
+	Info(url)
+
+	param, _ := json.Marshal(body)
+
+	_, err := PUT(url, param)
+	if err != nil {
+		Error("invoke updateByAPI Error, %s", err)
+		return err
+	}
+	Debug("Update DataFunction Action: %s, used %d ms", dfa.actionName, time.Since(startTime).Milliseconds())
+
+	if ping {
+		startTime = time.Now()
+
+		err = dfa.pingByAPI()
+		if err != nil {
+			dfa.created = false
+			return err
+		}
+		dfa.kl = CreateKeepLive(15)
+		dfa.kl.start(dfa)
+
+		Debug("Ping the New-Created DataFunction Action: %s, used %d ms", dfa.actionName, time.Since(startTime).Milliseconds())
+		return nil
+	}
+	return errors.New(fmt.Sprintf("Action `%s` has been created", dfa.actionName))
+}
+
+func (dfa *DataFunctionAction) createByAPI() error {
+	if !dfa.created {
+		dfa.created = true
+		return dfa.updateByAPI(true)
+	}
+	return errors.New(fmt.Sprintf("Action `%s` has been created", dfa.actionName))
+}
+
 func (dfa *DataFunctionAction) create() error {
 	if !dfa.created {
 		dfa.created = true
@@ -119,7 +225,7 @@ func (dfa *DataFunctionAction) create() error {
 			Error("createCommand Wait Error, %s", err)
 			return err
 		}
-		err = dfa.ping()
+		err = dfa.pingByAPI()
 		if err != nil {
 			dfa.created = false
 			return err
@@ -129,6 +235,20 @@ func (dfa *DataFunctionAction) create() error {
 		return nil
 	}
 	return errors.New(fmt.Sprintf("Action `%s` has been created", dfa.actionName))
+}
+
+func (dfa *DataFunctionAction) updateMemByAPI(newMem int) error {
+	if !dfa.created {
+		return errors.New(fmt.Sprintf("Action `%s` is not created", dfa.actionName))
+	}
+
+	if dfa.memConfigure != newMem {
+		dfa.memConfigure = newMem
+	} else {
+		return nil
+	}
+
+	return dfa.updateByAPI(false)
 }
 
 func (dfa *DataFunctionAction) updateMem(newMem int) error {
@@ -164,6 +284,50 @@ func (dfa *DataFunctionAction) updateMem(newMem int) error {
 	}
 	Debug("updateMem of %s Success", dfa.actionName)
 	return nil
+}
+
+type pingActionParam struct {
+	Op string `json:"op"`
+}
+
+func (dfa *DataFunctionAction) pingByAPI() error {
+
+	//curl -X 'POST' \
+	//'https://raw.githubusercontent.com/api/v1/namespaces/guest/actions/DataFunction-1?blocking=true&result=true' \
+	//-H 'accept: application/json' \
+	//-H 'authorization: Basic MjNiYzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOjEyM3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A=' \
+	//-H 'Content-Type: application/json' \
+	//-d '{"op":"ping"}'
+
+	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s?blocking=true&result=true", ApiHost, dfa.namespace, dfa.actionName)
+
+	param, _ := json.Marshal(pingActionParam{
+		"ping",
+	})
+	out, err := POSTWithTimeout(url, param, 60)
+	if err != nil {
+		Error("pingByAPI Error, %s", err)
+		return err
+	}
+
+	var actionResult map[string]string
+	err = json.Unmarshal([]byte(out), &actionResult)
+	if err != nil {
+		errMsg := fmt.Sprintf(
+			"Error Unmarshal action body, body:`%s`, err:`%s`",
+			out, err,
+		)
+		Error(errMsg)
+		return errors.New(errMsg)
+	}
+	if actionResult["body"] == "PONG" && actionResult["statusCode"] == "200" {
+		Info("Ping Action `%s` success", dfa.actionName)
+		return nil
+	} else {
+		errMsg := fmt.Sprintf("Un-pong, result: %s", out)
+		Error(errMsg)
+		return errors.New(errMsg)
+	}
 }
 
 func (dfa *DataFunctionAction) ping() error {

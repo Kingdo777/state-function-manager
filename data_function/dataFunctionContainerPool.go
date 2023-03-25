@@ -30,7 +30,7 @@ func NewIdleDataFunctionActionQueue(size int) *IdleDataFunctionActionQueue {
 				go func() {
 					Info("Adding a new DataFunctionAction")
 					action := NewAction(int(q.IDCounter.Add(1)))
-					err := action.create()
+					err := action.createByAPI()
 					if err != nil {
 						Error("Error to add DataFunctionAction: %s", err)
 						q.length.Add(-1)
@@ -147,7 +147,7 @@ func NewDataFunctionActionPool(poolSize int) (*DataFunctionActionPool, error) {
 func (pool *DataFunctionActionPool) instantiateAnIdleAction(MiBSizeMemory int) (*DataFunctionAction, error) {
 	action := pool.idleActions.Pop()
 	// Updating Action memory makes about 3~4 seconds latency, which is Intolerable
-	err := action.updateMem(MiBSizeMemory + BaseMemoryConfigureOfDataFunctionAction)
+	err := action.updateMemByAPI(MiBSizeMemory + BaseMemoryConfigureOfDataFunctionAction)
 	if err != nil {
 		Error("Error to add instantiate an idle Action: %s", err)
 		errDestroy := action.destroy()
