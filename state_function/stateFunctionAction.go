@@ -15,7 +15,7 @@ import (
 func StateFunctionActionCodePath() string {
 	var value, ok = os.LookupEnv("StateFunctionActionCodePath")
 	if !ok {
-		value = "/home/kingdo/CLionProjects/chestbox/StateFunction/action/src/state_function_action/__main__.py"
+		value = "/home/kingdo/CLionProjects/ChestBox/StateFunction/core/src/state-function-action/__main__.py"
 	}
 	return value
 }
