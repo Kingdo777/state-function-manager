@@ -24,7 +24,7 @@ COPY --from=builder_source /bin/proxy_source /bin/proxy_source
 COPY --from=builder_source /bin/proxy_source_local /bin/proxy_source_local
 RUN mv /bin/${GO_PROXY_BUILD_FROM} /bin/proxy
 
-COPY --from=builder_source /src/state-function/src/StateFunction/action/__main__.py /action/__main__.py
+COPY --from=builder_source /src/state-function/src/state-function-action/__main__.py /action/__main__.py
 ENV StateFunctionActionCodePath="/action/__main__.py"
 
 ENV Openwhisk_ApiHost="222.20.94.67"
