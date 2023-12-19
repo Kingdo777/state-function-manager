@@ -7,7 +7,7 @@ import (
 	"os"
 	"runtime"
 
-	df "github.com/Kingdo777/data_function_manager/data_function"
+	df "github.com/Kingdo777/state_function_manager/state_function"
 )
 
 // flag to show version
@@ -24,7 +24,7 @@ func main() {
 
 	// show version number
 	if *version {
-		fmt.Printf("DataFunction ManagerLoop Proxy v%s, built with %s\n", df.Version, runtime.Version())
+		fmt.Printf("StateFunction ManagerLoop Proxy v%s, built with %s\n", df.Version, runtime.Version())
 		return
 	}
 

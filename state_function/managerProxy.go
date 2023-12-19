@@ -1,4 +1,4 @@
-package data_function
+package state_function
 
 import (
 	"bytes"
@@ -16,32 +16,32 @@ type SHMObject struct {
 	// Key mains shm-Key
 	Key    int
 	size   int
-	action *DataFunctionAction
+	action *StateFunctionAction
 }
 
 func (shm *SHMObject) MibSize() int {
 	return ceilDiv(shm.size, MiB)
 }
 
-// DataFunctionManagerProxy is the DataFunction Manager running in a separate Action, as a component of Openwhisk
-type DataFunctionManagerProxy struct {
+// StateFunctionManagerProxy is the StateFunction Manager running in a separate Action, as a component of Openwhisk
+type StateFunctionManagerProxy struct {
 	keyGenerator *KeyGenerator
 
-	actionPool *DataFunctionActionPool
+	actionPool *StateFunctionActionPool
 
 	SHMObjectMapMutex sync.Mutex
 	SHMObjectMap      map[string]*SHMObject
 }
 
 // NewManagerProxy creates a new manager proxy that can handle http requests
-func NewManagerProxy() *DataFunctionManagerProxy {
+func NewManagerProxy() *StateFunctionManagerProxy {
 
-	pool, err := NewDataFunctionActionPool(1)
+	pool, err := NewStateFunctionActionPool(1)
 	if err != nil {
-		Error(fmt.Sprintf("Error NewDataFunctionActionPool: %s", err))
+		Error(fmt.Sprintf("Error NewStateFunctionActionPool: %s", err))
 		return nil
 	}
-	return &DataFunctionManagerProxy{
+	return &StateFunctionManagerProxy{
 		NewKeyGenerator(FirstShmKey, FirstShmKey+ShmKeyMaxCount),
 
 		pool,
@@ -59,7 +59,7 @@ type GetSHMResponseMessage struct {
 	Key string `json:"key"`
 }
 
-func (mp *DataFunctionManagerProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (mp *StateFunctionManagerProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	uri := r.URL.Path
 
 	var requestBody bytes.Buffer
@@ -155,7 +155,7 @@ func (mp *DataFunctionManagerProxy) ServeHTTP(w http.ResponseWriter, r *http.Req
 }
 
 // Start creates a proxy to execute actions
-func (mp *DataFunctionManagerProxy) Start(port int) {
+func (mp *StateFunctionManagerProxy) Start(port int) {
 	// listen and start
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), mp))
 }

@@ -1,4 +1,4 @@
-package data_function
+package state_function
 
 import (
 	"math/rand"

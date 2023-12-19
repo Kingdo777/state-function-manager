@@ -1,8 +1,8 @@
 version: '3.9'
 services:
-  data-function-manager:
-    image: kingdo/data-function-manager
-    container_name: data-function-manager
+  state-function-manager:
+    image: kingdo/state-function-manager
+    container_name: state-function-manager
     restart: always
     ports:
       - "7070:7070"

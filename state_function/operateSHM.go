@@ -1,4 +1,4 @@
-package data_function
+package state_function
 
 import (
 	"errors"
@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func (mp *DataFunctionManagerProxy) CreateSHM(SHMName string, bytesSize int) (int, error) {
+func (mp *StateFunctionManagerProxy) CreateSHM(SHMName string, bytesSize int) (int, error) {
 	start := time.Now()
 	Key, ok := mp.keyGenerator.GetKey()
 	if !ok {
@@ -15,7 +15,7 @@ func (mp *DataFunctionManagerProxy) CreateSHM(SHMName string, bytesSize int) (in
 
 	MiBSizeMemory := ceilDiv(bytesSize, MiB)
 
-	var action *DataFunctionAction
+	var action *StateFunctionAction
 	var err error
 
 	if MiBSizeMemory > 256*MiB {
@@ -49,7 +49,7 @@ func (mp *DataFunctionManagerProxy) CreateSHM(SHMName string, bytesSize int) (in
 	return Key, nil
 }
 
-func (mp *DataFunctionManagerProxy) GetSHM(name string) (int, error) {
+func (mp *StateFunctionManagerProxy) GetSHM(name string) (int, error) {
 	mp.SHMObjectMapMutex.Lock()
 	defer mp.SHMObjectMapMutex.Unlock()
 
@@ -61,7 +61,7 @@ func (mp *DataFunctionManagerProxy) GetSHM(name string) (int, error) {
 	return shm.Key, nil
 }
 
-func (mp *DataFunctionManagerProxy) DestroySHM(name string) (string, error) {
+func (mp *StateFunctionManagerProxy) DestroySHM(name string) (string, error) {
 	mp.SHMObjectMapMutex.Lock()
 
 	shm, ok := mp.SHMObjectMap[name]

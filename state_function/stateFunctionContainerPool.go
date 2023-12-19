@@ -1,4 +1,4 @@
-package data_function
+package state_function
 
 import (
 	"errors"
@@ -8,19 +8,19 @@ import (
 	"time"
 )
 
-type IdleDataFunctionActionQueue struct {
+type IdleStateFunctionActionQueue struct {
 	IDCounter   atomic.Int64
 	capacity    int
 	length      atomic.Int32
-	actionQueue chan *DataFunctionAction
+	actionQueue chan *StateFunctionAction
 }
 
-func NewIdleDataFunctionActionQueue(size int) *IdleDataFunctionActionQueue {
-	q := &IdleDataFunctionActionQueue{
+func NewIdleStateFunctionActionQueue(size int) *IdleStateFunctionActionQueue {
+	q := &IdleStateFunctionActionQueue{
 		IDCounter:   atomic.Int64{},
 		capacity:    size,
 		length:      atomic.Int32{},
-		actionQueue: make(chan *DataFunctionAction, size),
+		actionQueue: make(chan *StateFunctionAction, size),
 	}
 	q.IDCounter.Store(0)
 	q.length.Store(0)
@@ -28,17 +28,17 @@ func NewIdleDataFunctionActionQueue(size int) *IdleDataFunctionActionQueue {
 		for true {
 			for int(q.length.Add(1)) <= q.capacity {
 				go func() {
-					Info("Adding a new DataFunctionAction")
+					Info("Adding a new StateFunctionAction")
 					action := NewAction(int(q.IDCounter.Add(1)))
 					err := action.createByAPI()
 					if err != nil {
-						Error("Error to add DataFunctionAction: %s", err)
+						Error("Error to add StateFunctionAction: %s", err)
 						q.length.Add(-1)
 						time.Sleep(10 * time.Second)
 						return
 					}
 					q.Push(action)
-					Info("Added new DataFunctionAction : %s", action.actionName)
+					Info("Added new StateFunctionAction : %s", action.actionName)
 				}()
 			}
 			q.length.Add(-1)
@@ -48,39 +48,39 @@ func NewIdleDataFunctionActionQueue(size int) *IdleDataFunctionActionQueue {
 	return q
 }
 
-func (q *IdleDataFunctionActionQueue) Push(item *DataFunctionAction) {
+func (q *IdleStateFunctionActionQueue) Push(item *StateFunctionAction) {
 	q.actionQueue <- item
 }
 
-func (q *IdleDataFunctionActionQueue) Pop() *DataFunctionAction {
+func (q *IdleStateFunctionActionQueue) Pop() *StateFunctionAction {
 	q.length.Add(-1)
 	return <-q.actionQueue
 }
 
-func (q *IdleDataFunctionActionQueue) PopForShared() *DataFunctionAction {
+func (q *IdleStateFunctionActionQueue) PopForShared() *StateFunctionAction {
 	q.length.Add(-1)
 	action := <-q.actionQueue
-	action.leftSlots.Store(DefaultSharedDataFunctionMemorySlots)
+	action.leftSlots.Store(DefaultSharedStateFunctionMemorySlots)
 	action.exclusive = false
 	return action
 }
 
-type SharedDataFunctionActionList struct {
+type SharedStateFunctionActionList struct {
 	mutex       sync.Mutex
 	actionIndex map[string]int
-	actionList  []*DataFunctionAction
+	actionList  []*StateFunctionAction
 }
 
-func NewSharedDataFunctionActionList() *SharedDataFunctionActionList {
-	q := &SharedDataFunctionActionList{
+func NewSharedStateFunctionActionList() *SharedStateFunctionActionList {
+	q := &SharedStateFunctionActionList{
 		mutex:       sync.Mutex{},
 		actionIndex: make(map[string]int),
-		actionList:  []*DataFunctionAction{},
+		actionList:  []*StateFunctionAction{},
 	}
 	return q
 }
 
-func (l *SharedDataFunctionActionList) Borrow(memory int) *DataFunctionAction {
+func (l *SharedStateFunctionActionList) Borrow(memory int) *StateFunctionAction {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	for _, action := range l.actionList {
@@ -93,11 +93,11 @@ func (l *SharedDataFunctionActionList) Borrow(memory int) *DataFunctionAction {
 	return nil
 }
 
-func (l *SharedDataFunctionActionList) Add(action *DataFunctionAction) error {
+func (l *SharedStateFunctionActionList) Add(action *StateFunctionAction) error {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	if action.leftSlots.Load() != DefaultSharedDataFunctionMemorySlots {
-		return errors.New("error to add Action to SharedDataFunctionActionList, whose leftSlots is not equal to the default size")
+	if action.leftSlots.Load() != DefaultSharedStateFunctionMemorySlots {
+		return errors.New("error to add Action to SharedStateFunctionActionList, whose leftSlots is not equal to the default size")
 	}
 	index := len(l.actionList)
 	l.actionIndex[action.actionName] = index
@@ -105,13 +105,13 @@ func (l *SharedDataFunctionActionList) Add(action *DataFunctionAction) error {
 	return nil
 }
 
-func (l *SharedDataFunctionActionList) Back(action *DataFunctionAction, memory int) error {
+func (l *SharedStateFunctionActionList) Back(action *StateFunctionAction, memory int) error {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	index, ok := l.actionIndex[action.actionName]
 	if ok {
 		action.leftSlots.Add(int32(memory))
-		if len(l.actionList) > 1 && action.leftSlots.Load() == DefaultSharedDataFunctionMemorySlots {
+		if len(l.actionList) > 1 && action.leftSlots.Load() == DefaultSharedStateFunctionMemorySlots {
 			l.actionList = append(l.actionList[:index], l.actionList[index+1:]...)
 			err := action.destroyByAPI()
 			if err != nil {
@@ -124,16 +124,16 @@ func (l *SharedDataFunctionActionList) Back(action *DataFunctionAction, memory i
 	}
 }
 
-type DataFunctionActionPool struct {
-	sharedActions *SharedDataFunctionActionList
-	idleActions   *IdleDataFunctionActionQueue
+type StateFunctionActionPool struct {
+	sharedActions *SharedStateFunctionActionList
+	idleActions   *IdleStateFunctionActionQueue
 	poolSize      int
 }
 
-func NewDataFunctionActionPool(poolSize int) (*DataFunctionActionPool, error) {
-	pool := &DataFunctionActionPool{
-		NewSharedDataFunctionActionList(),
-		NewIdleDataFunctionActionQueue(poolSize),
+func NewStateFunctionActionPool(poolSize int) (*StateFunctionActionPool, error) {
+	pool := &StateFunctionActionPool{
+		NewSharedStateFunctionActionList(),
+		NewIdleStateFunctionActionQueue(poolSize),
 		poolSize,
 	}
 
@@ -144,10 +144,10 @@ func NewDataFunctionActionPool(poolSize int) (*DataFunctionActionPool, error) {
 	return pool, nil
 }
 
-func (pool *DataFunctionActionPool) instantiateAnIdleAction(MiBSizeMemory int) (*DataFunctionAction, error) {
+func (pool *StateFunctionActionPool) instantiateAnIdleAction(MiBSizeMemory int) (*StateFunctionAction, error) {
 	action := pool.idleActions.Pop()
 	// Updating Action memory makes about 3~4 seconds latency, which is Intolerable
-	err := action.updateMemByAPI(MiBSizeMemory + BaseMemoryConfigureOfDataFunctionAction)
+	err := action.updateMemByAPI(MiBSizeMemory + BaseMemoryConfigureOfStateFunctionAction)
 	if err != nil {
 		Error("Error to add instantiate an idle Action: %s", err)
 		errDestroy := action.destroy()
@@ -160,7 +160,7 @@ func (pool *DataFunctionActionPool) instantiateAnIdleAction(MiBSizeMemory int) (
 	return action, nil
 }
 
-func (pool *DataFunctionActionPool) GetAnSharedAction(MiBSizeMemory int) (*DataFunctionAction, error) {
+func (pool *StateFunctionActionPool) GetAnSharedAction(MiBSizeMemory int) (*StateFunctionAction, error) {
 	action := pool.sharedActions.Borrow(MiBSizeMemory)
 	if action != nil {
 		return action, nil

@@ -1,4 +1,4 @@
-module github.com/Kingdo777/data_function_manager
+module github.com/Kingdo777/state_function_manager
 
 go 1.20
 

@@ -1,4 +1,4 @@
-package data_function
+package state_function
 
 import (
 	"bytes"
@@ -12,16 +12,19 @@ import (
 	"time"
 )
 
-// const DataFunctionActionCodePath = "/home/kingdo/CLionProjects/DataFunction/src/DataFunction/DataFunction-Virtualenv.zip"
-// const DataFunctionActionCodePath = "/home/kingdo/CLionProjects/DataFunction/src/DataFunction/action/__main__.py"
+func StateFunctionActionCodePath() string {
+	var value, ok = os.LookupEnv("StateFunctionActionCodePath")
+	if !ok {
+		value = "/home/kingdo/CLionProjects/chestbox/StateFunction/action/src/state_function_action/__main__.py"
+	}
+	return value
+}
 
-var DataFunctionActionCodePath = os.Getenv("DataFunctionActionCodePath")
+const StateFunctionActionDockerImage = "kingdo/action-python-v3.10"
+const StateFunctionActionDockerImageTag = "latest"
 
-const DataFunctionActionDockerImage = "kingdo/action-python-v3.10"
-const DataFunctionActionDockerImageTag = "latest"
-
-const BaseMemoryConfigureOfDataFunctionAction = 64
-const DefaultSharedDataFunctionMemorySlots = 512
+const BaseMemoryConfigureOfStateFunctionAction = 64
+const DefaultSharedStateFunctionMemorySlots = 512
 
 type KeepLive struct {
 	ticker   *time.Ticker
@@ -37,7 +40,7 @@ func CreateKeepLive(interval int) *KeepLive {
 	}
 }
 
-func (kl *KeepLive) start(dfa *DataFunctionAction) {
+func (kl *KeepLive) start(dfa *StateFunctionAction) {
 	if !kl.running {
 		kl.running = true
 		go func() {
@@ -65,7 +68,7 @@ func (kl *KeepLive) stop() {
 	}
 }
 
-type DataFunctionAction struct {
+type StateFunctionAction struct {
 	ID           int
 	namespace    string
 	actionName   string
@@ -77,13 +80,13 @@ type DataFunctionAction struct {
 	exclusive    bool
 }
 
-func NewAction(ID int) *DataFunctionAction {
-	actionName := fmt.Sprintf("DataFunction-%d", ID)
-	return &DataFunctionAction{
+func NewAction(ID int) *StateFunctionAction {
+	actionName := fmt.Sprintf("StateFunction-%d", ID)
+	return &StateFunctionAction{
 		ID,
 		"guest",
 		actionName,
-		DefaultSharedDataFunctionMemorySlots + BaseMemoryConfigureOfDataFunctionAction,
+		DefaultSharedStateFunctionMemorySlots + BaseMemoryConfigureOfStateFunctionAction,
 		300000,
 		false,
 		nil,
@@ -114,11 +117,11 @@ type UpdateActionBody struct {
 	Publish bool `json:"publish"`
 }
 
-func (dfa *DataFunctionAction) updateByAPI(ping bool) error {
+func (dfa *StateFunctionAction) updateByAPI(ping bool) error {
 
 	startTime := time.Now()
 
-	code, _ := os.ReadFile(DataFunctionActionCodePath)
+	code, _ := os.ReadFile(StateFunctionActionCodePath())
 
 	body := UpdateActionBody{
 		Namespace: dfa.namespace,
@@ -131,7 +134,7 @@ func (dfa *DataFunctionAction) updateByAPI(ping bool) error {
 		}{
 			Kind:   "blackbox",
 			Code:   code,
-			Image:  fmt.Sprintf("%s:%s", DataFunctionActionDockerImage, DataFunctionActionDockerImageTag),
+			Image:  fmt.Sprintf("%s:%s", StateFunctionActionDockerImage, StateFunctionActionDockerImageTag),
 			Binary: false,
 		},
 		Annotations: []struct {
@@ -161,7 +164,7 @@ func (dfa *DataFunctionAction) updateByAPI(ping bool) error {
 		Publish: false,
 	}
 
-	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s?overwrite=true", ApiHost, dfa.namespace, dfa.actionName)
+	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s?overwrite=true", ApiHost(), dfa.namespace, dfa.actionName)
 	Info(url)
 
 	param, _ := json.Marshal(body)
@@ -171,7 +174,7 @@ func (dfa *DataFunctionAction) updateByAPI(ping bool) error {
 		Error("invoke updateByAPI Error, %s", err)
 		return err
 	}
-	Debug("Update DataFunction Action: %s, used %d ms", dfa.actionName, time.Since(startTime).Milliseconds())
+	Debug("Update StateFunction Action: %s, used %d ms", dfa.actionName, time.Since(startTime).Milliseconds())
 
 	if ping {
 		startTime = time.Now()
@@ -184,13 +187,13 @@ func (dfa *DataFunctionAction) updateByAPI(ping bool) error {
 		dfa.kl = CreateKeepLive(15)
 		dfa.kl.start(dfa)
 
-		Debug("Ping the New-Created DataFunction Action: %s, used %d ms", dfa.actionName, time.Since(startTime).Milliseconds())
+		Debug("Ping the New-Created StateFunction Action: %s, used %d ms", dfa.actionName, time.Since(startTime).Milliseconds())
 		return nil
 	}
 	return errors.New(fmt.Sprintf("Action `%s` has been created", dfa.actionName))
 }
 
-func (dfa *DataFunctionAction) createByAPI() error {
+func (dfa *StateFunctionAction) createByAPI() error {
 	if !dfa.created {
 		dfa.created = true
 		return dfa.updateByAPI(true)
@@ -198,15 +201,15 @@ func (dfa *DataFunctionAction) createByAPI() error {
 	return errors.New(fmt.Sprintf("Action `%s` has been created", dfa.actionName))
 }
 
-func (dfa *DataFunctionAction) create() error {
+func (dfa *StateFunctionAction) create() error {
 	if !dfa.created {
 		dfa.created = true
 		createCommand := fmt.Sprintf("%s -i action update %s %s --docker %s:%s -m %d -t %d",
 			WskCli,
 			dfa.actionName,
-			DataFunctionActionCodePath,
-			DataFunctionActionDockerImage,
-			DataFunctionActionDockerImageTag,
+			StateFunctionActionCodePath(),
+			StateFunctionActionDockerImage,
+			StateFunctionActionDockerImageTag,
 			dfa.memConfigure,
 			dfa.timeout,
 		)
@@ -239,7 +242,7 @@ func (dfa *DataFunctionAction) create() error {
 	return errors.New(fmt.Sprintf("Action `%s` has been created", dfa.actionName))
 }
 
-func (dfa *DataFunctionAction) updateMemByAPI(newMem int) error {
+func (dfa *StateFunctionAction) updateMemByAPI(newMem int) error {
 	if !dfa.created {
 		return errors.New(fmt.Sprintf("Action `%s` is not created", dfa.actionName))
 	}
@@ -253,7 +256,7 @@ func (dfa *DataFunctionAction) updateMemByAPI(newMem int) error {
 	return dfa.updateByAPI(false)
 }
 
-func (dfa *DataFunctionAction) updateMem(newMem int) error {
+func (dfa *StateFunctionAction) updateMem(newMem int) error {
 	if !dfa.created {
 		return errors.New(fmt.Sprintf("Action `%s` is not created", dfa.actionName))
 	}
@@ -292,16 +295,16 @@ type pingActionParam struct {
 	Op string `json:"op"`
 }
 
-func (dfa *DataFunctionAction) pingByAPI() error {
+func (dfa *StateFunctionAction) pingByAPI() error {
 
 	//curl -X 'POST' \
-	//'https://raw.githubusercontent.com/api/v1/namespaces/guest/actions/DataFunction-1?blocking=true&result=true' \
+	//'https://raw.githubusercontent.com/api/v1/namespaces/guest/actions/StateFunction-1?blocking=true&result=true' \
 	//-H 'accept: application/json' \
 	//-H 'authorization: Basic MjNiYzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOjEyM3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A=' \
 	//-H 'Content-Type: application/json' \
 	//-d '{"op":"ping"}'
 
-	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s?blocking=true&result=true", ApiHost, dfa.namespace, dfa.actionName)
+	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s?blocking=true&result=true", ApiHost(), dfa.namespace, dfa.actionName)
 
 	param, _ := json.Marshal(pingActionParam{
 		"ping",
@@ -332,7 +335,7 @@ func (dfa *DataFunctionAction) pingByAPI() error {
 	}
 }
 
-func (dfa *DataFunctionAction) ping() error {
+func (dfa *StateFunctionAction) ping() error {
 
 	updateCommand := fmt.Sprintf("%s -i action invoke --result --blocking %s --param op ping",
 		WskCli,
@@ -392,7 +395,7 @@ func (dfa *DataFunctionAction) ping() error {
 	}
 }
 
-func (dfa *DataFunctionAction) destroyByAPI() error {
+func (dfa *StateFunctionAction) destroyByAPI() error {
 	if !dfa.created {
 		return errors.New(fmt.Sprintf("Action `%s` is not created", dfa.actionName))
 	}
@@ -406,19 +409,19 @@ func (dfa *DataFunctionAction) destroyByAPI() error {
 	//-H 'accept: application/json' \
 	//-H 'authorization: Basic MjNiYzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOjEyM3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A='
 
-	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s", ApiHost, dfa.namespace, dfa.actionName)
+	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s", ApiHost(), dfa.namespace, dfa.actionName)
 
 	_, err := DELETE(url)
 	if err != nil {
 		Error("invoke destroyByAPI Error, %s", err)
 		return err
 	}
-	Debug("Destroy the DataFunction Action: %s, used %d ms", dfa.actionName, time.Since(startTime).Milliseconds())
+	Debug("Destroy the StateFunction Action: %s, used %d ms", dfa.actionName, time.Since(startTime).Milliseconds())
 	return nil
 }
 
-func (dfa *DataFunctionAction) destroy() error {
-	Debug("Destroy the DataFunction Action: %s", dfa.actionName)
+func (dfa *StateFunctionAction) destroy() error {
+	Debug("Destroy the StateFunction Action: %s", dfa.actionName)
 	if !dfa.created {
 		return errors.New(fmt.Sprintf("Action `%s` is not created", dfa.actionName))
 	}
@@ -454,19 +457,19 @@ type CreateSHMParam struct {
 }
 
 // docs: https://github.com/apache/openwhisk/blob/master/docs/rest_api.md#using-rest-apis-with-openwhisk
-func (dfa *DataFunctionAction) createSHMbyAPI(key int, size int) error {
+func (dfa *StateFunctionAction) createSHMbyAPI(key int, size int) error {
 	if !dfa.created {
 		return errors.New(fmt.Sprintf("Action `%s` is not created", dfa.actionName))
 	}
 
 	//curl -X 'POST' \
-	//'https://raw.githubusercontent.com/api/v1/namespaces/guest/actions/DataFunction-1?blocking=true&result=true' \
+	//'https://raw.githubusercontent.com/api/v1/namespaces/guest/actions/StateFunction-1?blocking=true&result=true' \
 	//-H 'accept: application/json' \
 	//-H 'authorization: Basic MjNiYzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOjEyM3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A=' \
 	//-H 'Content-Type: application/json' \
 	//-d '{"op":"ping"}'
 
-	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s?blocking=true&result=true", ApiHost, dfa.namespace, dfa.actionName)
+	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s?blocking=true&result=true", ApiHost(), dfa.namespace, dfa.actionName)
 
 	param, _ := json.Marshal(CreateSHMParam{
 		"create",
@@ -482,7 +485,7 @@ func (dfa *DataFunctionAction) createSHMbyAPI(key int, size int) error {
 	return nil
 }
 
-func (dfa *DataFunctionAction) createSHM(key int, size int) error {
+func (dfa *StateFunctionAction) createSHM(key int, size int) error {
 	if !dfa.created {
 		return errors.New(fmt.Sprintf("Action `%s` is not created", dfa.actionName))
 	}
@@ -519,19 +522,19 @@ type DeleteSHMParam struct {
 	Key int    `json:"key"`
 }
 
-func (dfa *DataFunctionAction) destroySHMbyAPI(key int) error {
+func (dfa *StateFunctionAction) destroySHMbyAPI(key int) error {
 	if !dfa.created {
 		return errors.New(fmt.Sprintf("Action `%s` is not created", dfa.actionName))
 	}
 
 	//curl -X 'POST' \
-	//'https://raw.githubusercontent.com/api/v1/namespaces/guest/actions/DataFunction-1?blocking=true&result=true' \
+	//'https://raw.githubusercontent.com/api/v1/namespaces/guest/actions/StateFunction-1?blocking=true&result=true' \
 	//-H 'accept: application/json' \
 	//-H 'authorization: Basic MjNiYzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOjEyM3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A=' \
 	//-H 'Content-Type: application/json' \
 	//-d '{"op":"ping"}'
 
-	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s?blocking=true&result=true", ApiHost, dfa.namespace, dfa.actionName)
+	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s?blocking=true&result=true", ApiHost(), dfa.namespace, dfa.actionName)
 
 	param, _ := json.Marshal(DeleteSHMParam{
 		"destroy",
@@ -545,7 +548,7 @@ func (dfa *DataFunctionAction) destroySHMbyAPI(key int) error {
 	Debug("destroySHM: %s", strings.Replace(out, "\n", "", -1))
 	return nil
 }
-func (dfa *DataFunctionAction) destroySHM(key int) error {
+func (dfa *StateFunctionAction) destroySHM(key int) error {
 	if !dfa.created {
 		return errors.New(fmt.Sprintf("Action `%s` is not created", dfa.actionName))
 	}

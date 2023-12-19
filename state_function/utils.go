@@ -1,4 +1,4 @@
-package data_function
+package state_function
 
 import (
 	"bytes"
@@ -110,7 +110,7 @@ func RESTFUL(method string, url string, requestBody []byte, timeout int) (string
 		return errMsg, err
 	}
 	request.Header.Set("Content-Type", "application/json")
-	request.SetBasicAuth(AuthName, AuthPassword)
+	request.SetBasicAuth(AuthName(), AuthPassword())
 
 	response, err := client.Do(request)
 	if err != nil {
