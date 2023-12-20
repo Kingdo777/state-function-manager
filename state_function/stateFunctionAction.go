@@ -297,10 +297,10 @@ type pingActionParam struct {
 
 func (dfa *StateFunctionAction) pingByAPI() error {
 
-	//curl -X 'POST' \
-	//'https://raw.githubusercontent.com/api/v1/namespaces/guest/actions/StateFunction-1?blocking=true&result=true' \
+	//curl -X 'POST' -k \
+	//-u 23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP \
+	//'https://222.20.94.67/api/v1/namespaces/guest/actions/StateFunction-2?blocking=true&result=true' \
 	//-H 'accept: application/json' \
-	//-H 'authorization: Basic MjNiYzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOjEyM3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A=' \
 	//-H 'Content-Type: application/json' \
 	//-d '{"op":"ping"}'
 
@@ -404,10 +404,10 @@ func (dfa *StateFunctionAction) destroyByAPI() error {
 	dfa.kl = nil
 	dfa.created = false
 
-	//curl -X 'DELETE' \
-	//'https://raw.githubusercontent.com/api/v1/namespaces/guest/actions/actionName' \
-	//-H 'accept: application/json' \
-	//-H 'authorization: Basic MjNiYzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOjEyM3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A='
+	//curl -X 'DELETE' -k \
+	//-u 23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP \
+	//'https://222.20.94.67/api/v1/namespaces/guest/actions/StateFunction-2?blocking=true&result=true' \
+	//-H 'accept: application/json'
 
 	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s", ApiHost(), dfa.namespace, dfa.actionName)
 
@@ -462,12 +462,12 @@ func (dfa *StateFunctionAction) createSHMbyAPI(key int, size int) error {
 		return errors.New(fmt.Sprintf("Action `%s` is not created", dfa.actionName))
 	}
 
-	//curl -X 'POST' \
-	//'https://raw.githubusercontent.com/api/v1/namespaces/guest/actions/StateFunction-1?blocking=true&result=true' \
+	//curl -X 'POST' -k \
+	//-u 23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP \
+	//'https://222.20.94.67/api/v1/namespaces/guest/actions/StateFunction-2?blocking=true&result=true' \
 	//-H 'accept: application/json' \
-	//-H 'authorization: Basic MjNiYzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOjEyM3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A=' \
 	//-H 'Content-Type: application/json' \
-	//-d '{"op":"ping"}'
+	//-d '{"op":"create", "key": 1111, "size": 4096}'
 
 	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s?blocking=true&result=true", ApiHost(), dfa.namespace, dfa.actionName)
 
@@ -527,12 +527,12 @@ func (dfa *StateFunctionAction) destroySHMbyAPI(key int) error {
 		return errors.New(fmt.Sprintf("Action `%s` is not created", dfa.actionName))
 	}
 
-	//curl -X 'POST' \
-	//'https://raw.githubusercontent.com/api/v1/namespaces/guest/actions/StateFunction-1?blocking=true&result=true' \
+	//curl -X 'POST' -k \
+	//-u 23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP \
+	//'https://222.20.94.67/api/v1/namespaces/guest/actions/StateFunction-2?blocking=true&result=true' \
 	//-H 'accept: application/json' \
-	//-H 'authorization: Basic MjNiYzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOjEyM3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A=' \
 	//-H 'Content-Type: application/json' \
-	//-d '{"op":"ping"}'
+	//-d '{"op":"destroy", "key": 1111}'
 
 	url := fmt.Sprintf("https://%s/api/v1/namespaces/%s/actions/%s?blocking=true&result=true", ApiHost(), dfa.namespace, dfa.actionName)
 
