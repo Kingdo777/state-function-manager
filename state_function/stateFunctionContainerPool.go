@@ -25,20 +25,23 @@ func NewIdleStateFunctionActionQueue(size int) *IdleStateFunctionActionQueue {
 	q.IDCounter.Store(0)
 	q.length.Store(0)
 	go func() {
-		for true {
+		for {
 			for int(q.length.Add(1)) <= q.capacity {
 				go func() {
 					Info("Adding a new StateFunctionAction")
 					action := NewAction(int(q.IDCounter.Add(1)))
-					err := action.createByAPI()
-					if err != nil {
-						Error("Error to add StateFunctionAction: %s", err)
-						q.length.Add(-1)
-						time.Sleep(10 * time.Second)
-						return
+					for {
+						err := action.createByAPI()
+						if err != nil {
+							Error("Error to add StateFunctionAction: %s, Try again after 10 seconds...", err)
+							action.created = false
+							time.Sleep(10 * time.Second)
+						} else {
+							q.Push(action)
+							Info("Added new StateFunctionAction : %s", action.actionName)
+							break
+						}
 					}
-					q.Push(action)
-					Info("Added new StateFunctionAction : %s", action.actionName)
 				}()
 			}
 			q.length.Add(-1)
