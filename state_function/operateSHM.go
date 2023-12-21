@@ -17,7 +17,12 @@ func (mp *StateFunctionManagerProxy) CreateSHM(SHMName string, bytesSize int) (i
 	start := time.Now()
 
 	if mp.CheckSHMExist(SHMName) {
-		return -1, errors.New(fmt.Sprintf("SHM `%s` already exists", SHMName))
+		//return -1, errors.New(fmt.Sprintf("SHM `%s` already exists", SHMName))
+		Warn("SHM `%s` already exists. We will destroy the old shm.", SHMName)
+		_, err := mp.DestroySHM(SHMName)
+		if err != nil {
+			return -1, errors.New(fmt.Sprintf("Error DestroySHM while destroy a exists shm `%s`: %s", SHMName, err))
+		}
 	}
 
 	Key, ok := mp.keyGenerator.GetKey()
