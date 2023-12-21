@@ -27,22 +27,23 @@ func NewIdleStateFunctionActionQueue(size int) *IdleStateFunctionActionQueue {
 	go func() {
 		for {
 			for int(q.length.Add(1)) <= q.capacity {
-				go func() {
-					Info("Adding a new StateFunctionAction")
-					action := NewAction(int(q.IDCounter.Add(1)))
-					for {
-						err := action.createByAPI()
-						if err != nil {
-							Error("Error to add StateFunctionAction: %s, Try again after 10 seconds...", err)
-							action.created = false
-							time.Sleep(10 * time.Second)
-						} else {
-							q.Push(action)
-							Info("Added new StateFunctionAction : %s", action.actionName)
-							break
-						}
+				//go func() {
+				// 顺序创建 StateFunctionAction
+				Info("Adding a new StateFunctionAction")
+				action := NewAction(int(q.IDCounter.Add(1)))
+				for {
+					err := action.createByAPI()
+					if err != nil {
+						Error("Error to add StateFunctionAction: %s, Try again after 10 seconds...", err)
+						action.created = false
+						time.Sleep(10 * time.Second)
+					} else {
+						q.Push(action)
+						Info("Added new StateFunctionAction : %s", action.actionName)
+						break
 					}
-				}()
+				}
+				//}()
 			}
 			q.length.Add(-1)
 			time.Sleep(time.Second)
