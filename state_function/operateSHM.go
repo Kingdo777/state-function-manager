@@ -6,8 +6,20 @@ import (
 	"time"
 )
 
+func (mp *StateFunctionManagerProxy) CheckSHMExist(name string) bool {
+	mp.SHMObjectMapMutex.Lock()
+	defer mp.SHMObjectMapMutex.Unlock()
+	_, ok := mp.SHMObjectMap[name]
+	return ok
+}
+
 func (mp *StateFunctionManagerProxy) CreateSHM(SHMName string, bytesSize int) (int, error) {
 	start := time.Now()
+
+	if mp.CheckSHMExist(SHMName) {
+		return -1, errors.New(fmt.Sprintf("SHM `%s` already exists", SHMName))
+	}
+
 	Key, ok := mp.keyGenerator.GetKey()
 	if !ok {
 		return -1, errors.New(fmt.Sprintf("Error genSHMKey"))
